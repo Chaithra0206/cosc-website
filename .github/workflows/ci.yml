@@ -8,7 +8,6 @@ on:
 
 jobs:
   lint-and-build:
-    name: Lint & Build
     runs-on: ubuntu-latest
 
     steps:
@@ -16,7 +15,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      #  Setup Node 20.x (required for Next.js 16)
+      #  Setup Node 20 (required for Next.js 16)
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
