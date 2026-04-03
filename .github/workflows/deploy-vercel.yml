@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main, master]
   push:
-    branches: [main, master] 
+    branches: [main, master]
   workflow_dispatch:
 
 jobs:
@@ -28,7 +28,7 @@ jobs:
         run: npm ci --verbose
         timeout-minutes: 5
 
-      # --- PREVIEW LOGIC (Pull Request) ---
+      # --- 1. PREVIEW DEPLOYMENT (For Pull Requests) ---
       
       - name: Pull Vercel Environment (Preview)
         if: github.event_name == 'pull_request'
@@ -54,7 +54,21 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID_PREVIEW }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_PREVIEW }}
 
-      # --- PRODUCTION LOGIC (Merge/Push or Manual) ---
+      - name: Comment preview URL on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const url = '${{ steps.vercel_preview.outputs.url }}';
+            const body = `Vercel Preview ready!\n\n[View Deployment](${url})`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body
+            });
+
+      # --- 2. PRODUCTION DEPLOYMENT (For Merge to Main/Master) ---
 
       - name: Pull Vercel Environment (Production)
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
@@ -63,27 +77,20 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID_PROD }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_PROD }}
 
-      - name: Build and Deploy to Vercel (Production)
+      - name: Build and Deploy (Production)
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        id: vercel_deploy_prod
         run: |
           npx vercel build --prod --token=${{ secrets.VERCEL_TOKEN_PROD }}
-          npx vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN_PROD }}
+          deployment_url=$(npx vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN_PROD }})
+          echo "PROD_URL=$deployment_url" >> "$GITHUB_OUTPUT"
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID_PROD }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_PROD }}
 
-      # --- NOTIFICATIONS ---
-
-      - name: Comment preview URL on PR
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const url = '${{ steps.vercel_preview.outputs.url }}';
-            const body = `🚀 Vercel Preview ready: ${url}`;
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body
-            });
+      - name: Generate Deployment Summary
+        if: always() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        run: |
+          echo "Production Status" >> $GITHUB_STEP_SUMMARY
+          echo "The latest build has been pushed to Vercel." >> $GITHUB_STEP_SUMMARY
+          echo "URL: ${{ steps.vercel_deploy_prod.outputs.PROD_URL }}" >> $GITHUB_STEP_SUMMARY
