@@ -32,14 +32,14 @@ Use a descriptive branch name, for example:
 
 ### 4. Install Dependencies
 ```bash
-npm install
+pnpm install
 ```
 
 ### 5. Make Your Changes
 
 Make your changes locally and test them by running the development server:
 ```bash
-npm run dev
+pnpm run dev
 ```
 
 ### 6. Commit Your Changes
@@ -98,7 +98,7 @@ You can also run them manually:
 
 
 # Lint code
-npm run lint
+pnpm run lint
 ```
 
 ---
