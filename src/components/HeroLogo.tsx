@@ -2,7 +2,11 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { animate, createTimeline, stagger, svg, splitText } from 'animejs';
 
-export default function HeroLogo() {
+interface HeroLogoProps {
+  onTransitionComplete?: () => void;
+}
+
+export default function HeroLogo({ onTransitionComplete }: HeroLogoProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const ready = useRef(false);
 
@@ -163,11 +167,33 @@ export default function HeroLogo() {
     };
     hlTimeout = setTimeout(highlightLoop, 2500);
 
+    // ── Phase 3: Transition Out ─────────────────
+    const transitionTimeout = setTimeout(() => {
+      // Scale up the core orb massively to cover the whole screen
+      animate('#core-orb', {
+        scale: 150,
+        duration: 1200,
+        ease: 'inOutExpo',
+        complete: () => {
+          if (onTransitionComplete) onTransitionComplete();
+        }
+      });
+
+      // Fade out all other specific elements so they disappear during explosion
+      animate('.cosc-frame, .circuit-line, .terminal-node, .orbital-ring', {
+        opacity: [1, 0],
+        fillOpacity: [1, 0],
+        duration: 800,
+        ease: 'inOutSine'
+      });
+    }, 4000);
+
     return () => {
       clearTimeout(hlTimeout);
+      clearTimeout(transitionTimeout);
       ready.current = false;
     };
-  }, []);
+  }, [onTransitionComplete]);
 
   // ── Phase 3: Interactive Micro-Animations ─────────────────
 
@@ -216,13 +242,13 @@ export default function HeroLogo() {
   }, []);
 
   return (
-    <div className="flex flex-col items-center justify-center gap-10">
+    <div className="flex flex-col w-full h-full items-center justify-center gap-10">
       {/* SVG Container with 3D perspective tilt */}
       <div
         ref={containerRef}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
-        className="relative w-56 h-56 sm:w-72 sm:h-72 cursor-crosshair"
+        className="relative w-72 h-72 sm:w-96 sm:h-96 cursor-crosshair"
         style={{ perspective: '800px', transformStyle: 'preserve-3d' }}
       >
         {/* Orbital ring (rotating dotted ring behind logo) */}
@@ -247,6 +273,7 @@ export default function HeroLogo() {
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 200 200"
           className="w-full h-full relative z-10"
+          style={{ overflow: 'visible' }}
         >
           {/* The "C" Frame — drawn in via stroke */}
           <path
@@ -316,19 +343,7 @@ export default function HeroLogo() {
       </div>
 
       {/* Hero Text with Liquid Hover Expansion */}
-      <div className="flex flex-col items-center">
-        <h1
-          onMouseEnter={dtTextEnter}
-          onMouseLeave={dtTextLeave}
-          className="hero-text text-5xl sm:text-7xl font-bold tracking-tight text-zinc-900 select-none transition-all duration-300"
-          style={{ fontKerning: 'none' }}
-        >
-          COSC
-        </h1>
-        <p className="hero-subtitle mt-4 text-zinc-500 font-medium tracking-[0.2em] uppercase text-xs sm:text-sm">
-          Canara Open Source Community
-        </p>
-      </div>
+     
     </div>
   );
 }
